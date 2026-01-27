@@ -1,0 +1,123 @@
+@startuml sequence_diagram_webapp_static_analysis
+title WebApp Execution Flow - Static Code Analysis (Static Service) [Implementation-Accurate]
+
+actor User
+participant Browser
+participant "UploadPythonPage\n(Next.js Client Component)" as FE
+participant "API Client\n(utils/api.detectStatic)" as API
+participant "StaticAnalysis Service\n(FastAPI)" as SVC
+participant "Router\nPOST /detect_smell_static\n(detect_smell.py)" as SA_R
+participant "detect_static(code_snippet)\n(static_analysis.py)" as SA
+participant "Temp File\nNamedTemporaryFile(.py)" as TMP
+participant "Inspector.inspect(file_path)\n(inspector.py)" as INSP
+participant "RuleChecker.rule_check(...)\n(rule_checker.py)" as RC
+
+== Page load ==
+User -> Browser: Navigate to /upload-python
+Browser -> FE: Render UploadPythonPage (SSR/CSR)
+FE --> Browser: UI ready (mode toggle, file picker, submit)
+
+== User selects file ==
+User -> Browser: Choose example.py
+Browser -> FE: handleFileChange(file)
+FE -> FE: setFile(file)\nsetFileName(file.name)
+
+== User selects Static mode ==
+User -> Browser: Click "Static Tool"
+Browser -> FE: setAnalysisMode("Static")
+
+== Submit ==
+User -> Browser: Click "Upload Code (Static Mode)"
+Browser -> FE: handleSubmit()
+activate FE
+
+FE -> FE: Validate input (file != null)
+alt file missing
+  FE --> Browser: toast.error("No file available. Please add a file before submitting.")
+  FE -> FE: setIsLoading(false)\nsetProgress(100)
+  deactivate FE
+  return
+end
+
+FE -> FE: fileContent = await file.text()
+alt code_snippet empty
+  FE --> Browser: toast.error("Code Snippet cannot be empty.")
+  FE -> FE: setIsLoading(false)\nsetProgress(100)
+  deactivate FE
+  return
+end
+
+FE -> FE: setIsLoading(true)\nsetProgress(30)
+FE --> Browser: show spinner + progress bar
+FE -> API: detectStatic(fileContent)
+activate API
+
+== HTTP request ==
+API -> SVC: POST /detect_smell_static\nJSON { "code_snippet": "<...>" }
+activate SVC
+
+SVC -> SA_R: dispatch request
+activate SA_R
+SA_R -> SA: detect_static(code_snippet)
+activate SA
+
+== Static analysis pipeline ==
+SA -> TMP: create temp .py (delete=False)\nwrite code_snippet
+activate TMP
+TMP --> SA: temp_file_path
+deactivate TMP
+
+SA -> INSP: inspect(temp_file_path)
+activate INSP
+
+INSP -> INSP: open file + read source
+INSP -> INSP: ast.parse(source)
+INSP -> INSP: extract context\n(libraries, variables, df vars, models, lines)
+INSP -> RC: rule_check(FunctionDef, extracted_data, ...)
+activate RC
+RC --> INSP: append detected smells to DataFrame
+deactivate RC
+
+INSP --> SA: smells_df (DataFrame)
+deactivate INSP
+
+alt smells_df is empty
+  SA -> SA: return { success: True,\nresponse: "Static analysis returned no data" }
+else smells_df has rows
+  SA -> SA: map rows -> Smell objects list
+  SA -> SA: return { success: True,\nresponse: [Smell, Smell, ...] }
+end
+
+SA -> TMP: delete temp file (os.remove)
+activate TMP
+TMP --> SA: deleted
+deactivate TMP
+
+SA --> SA_R: analysis_result { success, response }
+deactivate SA
+
+SA_R --> SA_R: build DetectSmellStaticResponse\nsuccess=analysis_result["success"]\nsmells=analysis_result["response"]
+SA_R --> SVC: { success: <bool>,\nsmells: "string"|[Smell,...] }
+deactivate SA_R
+
+SVC --> API: HTTP 200 + JSON body
+deactivate SVC
+API --> FE: data { success, smells }
+deactivate API
+
+== UI update ==
+FE -> FE: setProgress(70)
+alt data.success == false
+  FE --> Browser: toast.error("Error: Failed to analyze code.")
+  FE -> FE: setIsLoading(false)\nsetProgress(100)
+else data.success == true
+  FE -> FE: if (data.smells) setResult(data.smells)\nelse toast.error("Unexpected API response format")
+  FE --> Browser: render Results component
+  FE --> Browser: toast.success("Code uploaded and analyzed successfully!")
+  FE -> FE: setIsLoading(false)\nsetProgress(100)
+end
+deactivate FE
+
+Browser --> User: Display analysis outcome
+
+@enduml

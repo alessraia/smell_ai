@@ -1,0 +1,198 @@
+@startuml classes_CodeSmile
+set namespaceSeparator none
+class "BroadcastingFeatureNotUsedSmell" as detection_rules.generic.broadcasting_feature_not_used.BroadcastingFeatureNotUsedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "ChainIndexingSmell" as detection_rules.api_specific.chain_indexing_smell.ChainIndexingSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "CodeSmellDetectorGUI" as gui.code_smell_detector_gui.CodeSmellDetectorGUI {
+  exit_button : Button
+  input_button : Button
+  input_label : Label
+  input_path : Label
+  master
+  multiple_check : Checkbutton
+  multiple_var : BooleanVar
+  output_button : Button
+  output_label : Label
+  output_path : Label
+  output_textbox : Text
+  parallel_check : Checkbutton
+  parallel_var : BooleanVar
+  project_analyzer : NoneType
+  resume_check : Checkbutton
+  resume_var : BooleanVar
+  run_button : Button
+  walker_label : Label
+  walker_picker : Spinbox
+  choose_input_path()
+  choose_output_path()
+  configure_stdout()
+  disable_key_press(event)
+  run_analysis(input_path, output_path, num_walkers, is_parallel, is_resume, is_multiple)
+  run_program()
+  setup_gui()
+}
+class "CodeSmileCLI" as cli.cli_runner.CodeSmileCLI {
+  analyzer
+  args
+  execute()
+  validate_args()
+}
+class "CodeSmileGUI" as gui.gui_runner.CodeSmileGUI {
+  gui
+  root : Tk
+  run()
+}
+class "ColumnsAndDatatypeNotExplicitlySetSmell" as detection_rules.generic.columns_and_datatype_not_explicitly_set.ColumnsAndDatatypeNotExplicitlySetSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "DataFrameConversionAPIMisused" as detection_rules.api_specific.dataframe_conversion_api_misused.DataFrameConversionAPIMisused {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "DataFrameExtractor" as code_extractor.dataframe_extractor.DataFrameExtractor {
+  df_methods : list
+  extract_dataframe_variables(fun_node: ast.AST, alias: str) -> list[str]
+  load_dataframe_dict(path: str)
+  track_dataframe_accesses(fun_node: ast.AST, dataframe_vars: list[str]) -> dict[str, list[str]]
+  track_dataframe_methods(fun_node: ast.AST, dataframe_vars: list[str]) -> dict[str, list[str]]
+}
+class "DeterministicAlgorithmOptionSmell" as detection_rules.generic.deterministic_algorithm_option_not_used.DeterministicAlgorithmOptionSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "EmptyColumnMisinitializationSmell" as detection_rules.generic.empty_column_misinitialization.EmptyColumnMisinitializationSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "GradientsNotClearedSmell" as detection_rules.api_specific.gradients_not_cleared_before_backward_propagation.GradientsNotClearedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "HyperparametersNotExplicitlySetSmell" as detection_rules.generic.hyperparameters_not_explicitly_set.HyperparametersNotExplicitlySetSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "InPlaceAPIsMisusedSmell" as detection_rules.generic.in_place_apis_misused.InPlaceAPIsMisusedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "Inspector" as components.inspector.Inspector {
+  dataframe_extractor
+  library_extractor
+  model_extractor
+  output_path : str
+  rule_checker
+  variable_extractor
+  inspect(filename: str) -> pd.DataFrame
+}
+class "LibraryExtractor" as code_extractor.library_extractor.LibraryExtractor {
+  extract_libraries(tree: ast.AST) -> list[dict[str, str]]
+  get_library_aliases(libraries: list[dict[str, str]]) -> dict[str, str]
+  get_library_of_node(node: ast.AST, aliases: dict[str, str]) -> str
+}
+class "MatrixMultiplicationAPIMisused" as detection_rules.api_specific.matrix_multiplication_api_misused.MatrixMultiplicationAPIMisused {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "MemoryNotFreedSmell" as detection_rules.generic.memory_not_freed.MemoryNotFreedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "MergeAPIParameterNotExplicitlySetSmell" as detection_rules.generic.merge_api_parameter_not_explicitly_set.MergeAPIParameterNotExplicitlySetSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "ModelExtractor" as code_extractor.model_extractor.ModelExtractor {
+  model_dict : NoneType
+  models_path : str
+  tensor_operations_dict : NoneType
+  tensors_path : str
+  check_model_method(model: str, libraries: list[str]) -> bool
+  load_model_dict() -> dict[str, list]
+  load_model_methods() -> list[str]
+  load_tensor_operations_dict() -> dict[str, list]
+}
+class "NanEquivalenceComparisonMisusedSmell" as detection_rules.generic.nan_equivalence_comparison_misused.NanEquivalenceComparisonMisusedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "ProjectAnalyzer" as components.project_analyzer.ProjectAnalyzer {
+  base_output_path : str
+  inspector
+  output_path : str
+  analyze_project(project_path: str) -> int
+  analyze_projects_parallel(base_path: str, max_workers: int)
+  analyze_projects_sequential(base_path: str, resume: bool)
+  clean_output_directory()
+  merge_all_results()
+}
+class "ProjectRepositoryCloner" as components.project_repository_cloner.ProjectRepositoryCloner {
+  base_path : str
+  repo_data_path : str
+  clean()
+  debug_filter_repo(df: pd.DataFrame) -> pd.DataFrame
+  execute()
+  filter_repos(df: pd.DataFrame, stars: int, commits: int) -> pd.DataFrame
+  get_debug_projects()
+  get_projects()
+  get_repo(repo_url: str)
+  setup()
+}
+class "PyTorchCallMethodMisusedSmell" as detection_rules.api_specific.pytorch_call_method_misused.PyTorchCallMethodMisusedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "ReportGenerator" as report.report_generator.ReportGenerator {
+  input_path : str
+  output_path : str
+  menu()
+  project_report(df)
+  run()
+  smell_report(df)
+  summary_report(df)
+  visualize_smell_report(df)
+}
+class "RuleChecker" as components.rule_checker.RuleChecker {
+  output_path : str
+  smells : list
+  rule_check(ast_node: ast.AST, extracted_data: dict[str, any], filename: str, function_name: str, df_output: pd.DataFrame) -> pd.DataFrame
+}
+class "Smell" as detection_rules.smell.Smell {
+  description : str
+  name : str
+  {abstract}detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+  format_smell(line: int, additional_info: str) -> dict[str, any]
+}
+class "TensorArrayNotUsedSmell" as detection_rules.api_specific.tensor_array_not_used.TensorArrayNotUsedSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "TextBoxRedirect" as gui.textbox_redirect.TextBoxRedirect {
+  textbox
+  {abstract}flush()
+  write(text)
+}
+class "UnnecessaryIterationSmell" as detection_rules.generic.unnecessary_iteration.UnnecessaryIterationSmell {
+  detect(ast_node: ast.AST, extracted_data: dict[str, any]) -> list[dict[str, any]]
+}
+class "VariableExtractor" as code_extractor.variable_extractor.VariableExtractor {
+  extract_variable_definitions(fun_node: ast.AST) -> dict[str, ast.Assign]
+  track_variable_usage(fun_node: ast.AST) -> dict[str, list[ast.Name]]
+}
+detection_rules.api_specific.chain_indexing_smell.ChainIndexingSmell --|> detection_rules.smell.Smell
+detection_rules.api_specific.dataframe_conversion_api_misused.DataFrameConversionAPIMisused --|> detection_rules.smell.Smell
+detection_rules.api_specific.gradients_not_cleared_before_backward_propagation.GradientsNotClearedSmell --|> detection_rules.smell.Smell
+detection_rules.api_specific.matrix_multiplication_api_misused.MatrixMultiplicationAPIMisused --|> detection_rules.smell.Smell
+detection_rules.api_specific.pytorch_call_method_misused.PyTorchCallMethodMisusedSmell --|> detection_rules.smell.Smell
+detection_rules.api_specific.tensor_array_not_used.TensorArrayNotUsedSmell --|> detection_rules.smell.Smell
+detection_rules.generic.broadcasting_feature_not_used.BroadcastingFeatureNotUsedSmell --|> detection_rules.smell.Smell
+detection_rules.generic.columns_and_datatype_not_explicitly_set.ColumnsAndDatatypeNotExplicitlySetSmell --|> detection_rules.smell.Smell
+detection_rules.generic.deterministic_algorithm_option_not_used.DeterministicAlgorithmOptionSmell --|> detection_rules.smell.Smell
+detection_rules.generic.empty_column_misinitialization.EmptyColumnMisinitializationSmell --|> detection_rules.smell.Smell
+detection_rules.generic.hyperparameters_not_explicitly_set.HyperparametersNotExplicitlySetSmell --|> detection_rules.smell.Smell
+detection_rules.generic.in_place_apis_misused.InPlaceAPIsMisusedSmell --|> detection_rules.smell.Smell
+detection_rules.generic.memory_not_freed.MemoryNotFreedSmell --|> detection_rules.smell.Smell
+detection_rules.generic.merge_api_parameter_not_explicitly_set.MergeAPIParameterNotExplicitlySetSmell --|> detection_rules.smell.Smell
+detection_rules.generic.nan_equivalence_comparison_misused.NanEquivalenceComparisonMisusedSmell --|> detection_rules.smell.Smell
+detection_rules.generic.unnecessary_iteration.UnnecessaryIterationSmell --|> detection_rules.smell.Smell
+code_extractor.dataframe_extractor.DataFrameExtractor --* components.inspector.Inspector : dataframe_extractor
+code_extractor.library_extractor.LibraryExtractor --* components.inspector.Inspector : library_extractor
+code_extractor.model_extractor.ModelExtractor --* components.inspector.Inspector : model_extractor
+code_extractor.variable_extractor.VariableExtractor --* components.inspector.Inspector : variable_extractor
+components.inspector.Inspector --* components.project_analyzer.ProjectAnalyzer : inspector
+components.project_analyzer.ProjectAnalyzer --* cli.cli_runner.CodeSmileCLI : analyzer
+components.project_analyzer.ProjectAnalyzer --* gui.code_smell_detector_gui.CodeSmellDetectorGUI : project_analyzer
+components.rule_checker.RuleChecker --* components.inspector.Inspector : rule_checker
+gui.code_smell_detector_gui.CodeSmellDetectorGUI --* gui.gui_runner.CodeSmileGUI : gui
+@enduml

@@ -1,0 +1,136 @@
+@startuml sequence_diagram_cli_single_project
+title Sequence Diagram: CLI Execution Flow - Single Project Analysis
+
+actor User
+participant Terminal
+participant CLI_Runner
+participant ArgumentParser
+participant CodeSmileCLI
+participant ProjectAnalyzer
+participant Inspector
+participant RuleChecker
+database "CSV Output\noutput/overview.csv"
+
+== Invocation & Parsing Phase ==
+User -> Terminal: Execute python -m cli_runner.py\n--input <project_path> --output <output_path>
+activate Terminal
+
+Terminal -> CLI_Runner: main()
+activate CLI_Runner
+
+CLI_Runner -> ArgumentParser: parse_args()
+activate ArgumentParser
+ArgumentParser --> CLI_Runner: args
+deactivate ArgumentParser
+
+CLI_Runner -> CodeSmileCLI: __init__(args)
+activate CodeSmileCLI
+
+== Initialization & Setup Phase ==
+CodeSmileCLI -> ProjectAnalyzer: __init__(args.output)
+activate ProjectAnalyzer
+note right of ProjectAnalyzer
+  Prepares output directory (output/)
+  Initializes Inspector(output/)
+end note
+
+ProjectAnalyzer -> Inspector: __init__(output_path)
+activate Inspector
+Inspector -> RuleChecker: __init__(output_path)
+activate RuleChecker
+RuleChecker --> Inspector: smells initialized
+deactivate RuleChecker
+deactivate Inspector
+
+ProjectAnalyzer --> CodeSmileCLI: analyzer initialized
+deactivate ProjectAnalyzer
+
+CodeSmileCLI -> CodeSmileCLI: validate_args()
+CodeSmileCLI -> CodeSmileCLI: print configuration
+
+opt resume == False
+  CodeSmileCLI -> ProjectAnalyzer: clean_output_directory()
+  activate ProjectAnalyzer
+  note right of ProjectAnalyzer
+    Cleans previous results in output/
+  end note
+  ProjectAnalyzer --> CodeSmileCLI: directory cleaned
+  deactivate ProjectAnalyzer
+end
+
+== Execution Phase (Single Project) ==
+note over CodeSmileCLI
+  Single project mode (multiple = False)
+end note
+
+CodeSmileCLI -> ProjectAnalyzer: analyze_project(project_path)
+activate ProjectAnalyzer
+
+ProjectAnalyzer -> ProjectAnalyzer: get_python_files(project_path)
+note right of ProjectAnalyzer
+  Collect all Python files in the project
+end note
+
+== File Analysis Loop ==
+loop For each Python file in project
+  ProjectAnalyzer -> Inspector: inspect(filename)
+  activate Inspector
+
+  note right of Inspector
+    Parse file into AST and extract relevant data:
+    - Extract libraries
+    - Extract variables per function
+    - Extract DataFrame variables per function
+    - Preload dictionaries (models, tensors, dataframes)
+  end note
+
+  loop For each function in file
+    Inspector -> RuleChecker: rule_check(node, function_data, ...)
+    activate RuleChecker
+    RuleChecker --> Inspector: Updated DataFrame
+    deactivate RuleChecker
+  end
+
+  Inspector --> ProjectAnalyzer: DataFrame with smells (file-level)
+  deactivate Inspector
+
+  ProjectAnalyzer -> ProjectAnalyzer: Accumulate results
+  note right of ProjectAnalyzer
+    Append file results to global DataFrame
+    Update total smell count
+  end note
+
+  opt SyntaxError or FileNotFoundError
+    note right of ProjectAnalyzer
+      Write error to output/error.txt
+      Continue with next file
+    end note
+  end
+end
+
+== Save Results ==
+ProjectAnalyzer -> ProjectAnalyzer: _save_results("overview.csv")
+ProjectAnalyzer -> "CSV Output\noutput/overview.csv": Save results
+activate "CSV Output\noutput/overview.csv"
+note right of "CSV Output\noutput/overview.csv"
+  Consolidated smells for the project
+end note
+deactivate "CSV Output\noutput/overview.csv"
+
+ProjectAnalyzer --> CodeSmileCLI: total_smells (int)
+deactivate ProjectAnalyzer
+
+CodeSmileCLI -> CodeSmileCLI: print "Analysis completed..."
+CodeSmileCLI -> CodeSmileCLI: print "Analysis results saved successfully."
+
+== Analysis Complete ==
+CodeSmileCLI --> CLI_Runner: return
+deactivate CodeSmileCLI
+
+CLI_Runner --> Terminal: exit 0
+deactivate CLI_Runner
+
+Terminal --> User: Results ready
+deactivate Terminal
+
+@enduml

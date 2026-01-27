@@ -1,0 +1,294 @@
+@startuml sequence_diagram_gui_single_project
+title Sequence Diagram: GUI Execution Flow - Single Project Analysis
+
+actor User
+participant GUI_Runner
+participant CodeSmellDetectorGUI
+participant TextBoxRedirect
+participant ProjectAnalyzer
+participant Inspector
+participant RuleChecker
+database "CSV Output\noutput/overview.csv"
+
+== Initialization Phase ==
+User -> GUI_Runner: Execute python gui_runner.py
+activate GUI_Runner
+
+GUI_Runner -> CodeSmellDetectorGUI: __init__(root)
+activate CodeSmellDetectorGUI
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: setup_gui()
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: configure_stdout()
+CodeSmellDetectorGUI -> TextBoxRedirect: __init__(output_textbox)
+activate TextBoxRedirect
+TextBoxRedirect --> CodeSmellDetectorGUI: initialized
+deactivate TextBoxRedirect
+CodeSmellDetectorGUI --> GUI_Runner: GUI ready
+deactivate CodeSmellDetectorGUI
+
+deactivate CodeSmellDetectorGUI
+
+GUI_Runner -> CodeSmellDetectorGUI: root.mainloop()
+note over GUI_Runner
+    GUI waits for user interaction
+    Remains responsive
+end note
+
+== User Interaction Phase ==
+User -> CodeSmellDetectorGUI: click "Choose Input Folder"
+activate CodeSmellDetectorGUI
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: choose_input_path()
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: input_path.configure(text=path)
+note over CodeSmellDetectorGUI
+    Path displayed in label widget
+    Example: C:\Users\...\my_project
+end note
+deactivate CodeSmellDetectorGUI
+
+User -> CodeSmellDetectorGUI: click "Choose Output Folder"
+activate CodeSmellDetectorGUI
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: choose_output_path()
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: output_path.configure(text=path)
+note over CodeSmellDetectorGUI
+    Path displayed in label widget
+    Example: C:\Users\...\output
+end note
+deactivate CodeSmellDetectorGUI
+
+note over User, CodeSmellDetectorGUI
+    User leaves all checkboxes UNCHECKED:
+    - Multiple: OFF → Single project mode
+    - Parallel: OFF (irrelevant in single mode)
+    - Resume: OFF (irrelevant in single mode)
+end note
+
+== Execution Phase ==
+User -> CodeSmellDetectorGUI: click "Run"
+activate CodeSmellDetectorGUI
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: run_program()
+
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: Validate paths
+note right of CodeSmellDetectorGUI
+    Check: input_path != "No path selected"
+    Check: output_path != "No path selected"
+    If validation passes → continue
+    If validation fails → print error and return
+end note
+
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: Gather parameters from GUI
+note right of CodeSmellDetectorGUI
+    num_walkers = spinbox.get()
+    is_parallel = False (checkbox unchecked)
+    is_resume = False (checkbox unchecked)
+    is_multiple = False (checkbox unchecked)
+end note
+
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: Create daemon thread
+note right of CodeSmellDetectorGUI
+    threading.Thread(
+        target=run_analysis,
+        args=(input_path, output_path, ...),
+        daemon=True
+    )
+end note
+
+CodeSmellDetectorGUI -> CodeSmellDetectorGUI: analysis_thread.start()
+CodeSmellDetectorGUI --> User: Return immediately
+note right of CodeSmellDetectorGUI
+    GUI responsive
+    Analysis runs in background thread
+end note
+deactivate CodeSmellDetectorGUI
+
+== Background Analysis Thread ==
+note over CodeSmellDetectorGUI
+    Background execution begins
+    (Thread analysis running in daemon)
+end note
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Input Path: {input_path}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Output Path: {output_path}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Number of Walkers: {num_walkers}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Parallel Execution: False")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Resume Execution: False")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Analyze multiple projects: False")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+== ProjectAnalyzer Initialization ==
+CodeSmellDetectorGUI -> ProjectAnalyzer: __init__(output_path)
+activate ProjectAnalyzer
+note right of ProjectAnalyzer
+    self.base_output_path = output_path
+    self.output_path = output_path/output
+    FileUtils.clean_directory(base_output_path, "output")
+    self.inspector = Inspector(self.output_path)
+end note
+ProjectAnalyzer --> CodeSmellDetectorGUI: analyzer initialized
+deactivate ProjectAnalyzer
+
+CodeSmellDetectorGUI -> ProjectAnalyzer: clean_output_directory()
+activate ProjectAnalyzer
+note right of ProjectAnalyzer
+    is_resume = False, so clean
+    FileUtils.clean_directory() removes output/ folder
+    Creates fresh output/ directory
+end note
+ProjectAnalyzer --> CodeSmellDetectorGUI: directory cleaned
+deactivate ProjectAnalyzer
+
+== Single Project Analysis Flow ==
+note over CodeSmellDetectorGUI, ProjectAnalyzer
+    is_multiple = False → execute single project mode
+end note
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print("Analyzing project(s)...")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+CodeSmellDetectorGUI -> ProjectAnalyzer: analyze_project(input_path)
+activate ProjectAnalyzer
+note right of ProjectAnalyzer
+    project_name = os.path.basename(input_path)
+    filenames = FileUtils.get_python_files(input_path)
+    Retrieve all .py files in project recursively
+end note
+
+ProjectAnalyzer -> TextBoxRedirect: print(f"Starting analysis for project: {project_name}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+== File Analysis Loop ==
+loop For each Python file in project
+    ProjectAnalyzer -> Inspector: inspect(filename)
+    activate Inspector
+    
+    note right of Inspector
+        1. Read file and parse with ast.parse()
+        2. Extract imports (libraries)
+        3. For each function in AST:
+           - Extract variables
+           - Extract DataFrame variables
+        4. Load dictionaries:
+           - model_dict
+           - tensor_operations_dict
+           - df_methods
+    end note
+    
+    loop For each function in file
+        Inspector -> RuleChecker: rule_check(node, function_data, filename, func_name, df)
+        activate RuleChecker
+        note right of RuleChecker
+            Apply all detection rules
+            Check for code smells:
+            - AI-specific patterns
+            - Model usage issues
+            - Tensor operations
+            - DataFrame operations
+            Return updated DataFrame with detected smells
+        end note
+        RuleChecker --> Inspector: Updated DataFrame
+        deactivate RuleChecker
+    end
+    
+    Inspector --> ProjectAnalyzer: DataFrame with smells
+    deactivate Inspector
+    
+    ProjectAnalyzer -> ProjectAnalyzer: Accumulate results
+    note right of ProjectAnalyzer
+        pd.concat([to_save, result], ignore_index=True)
+        total_smells += smell_count
+    end note
+    
+    ProjectAnalyzer -> TextBoxRedirect: print(f"Found X code smells in file: {filename}")
+    activate TextBoxRedirect
+    TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox (if smells > 0)
+    deactivate TextBoxRedirect
+    
+end
+
+== Save Results ==
+ProjectAnalyzer -> ProjectAnalyzer: _save_results(to_save, "overview.csv")
+note right of ProjectAnalyzer
+    os.makedirs(self.output_path, exist_ok=True)
+    file_path = output_path/overview.csv
+    to_save.to_csv(file_path, index=False)
+end note
+
+ProjectAnalyzer -> "CSV Output\noutput/overview.csv": Save DataFrame to CSV
+activate "CSV Output\noutput/overview.csv"
+note right of "CSV Output\noutput/overview.csv"
+    Columns: filename, function_name, smell_name, 
+    line, description, additional_info
+end note
+deactivate "CSV Output\noutput/overview.csv"
+
+ProjectAnalyzer -> TextBoxRedirect: print(f"Results saved to {file_path}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+ProjectAnalyzer -> TextBoxRedirect: print(f"Finished analysis for project: {project_name}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+ProjectAnalyzer -> TextBoxRedirect: print(f"Total code smells found in project '{project_name}': {total_smells}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+ProjectAnalyzer --> CodeSmellDetectorGUI: total_smells (int)
+deactivate ProjectAnalyzer
+
+CodeSmellDetectorGUI -> TextBoxRedirect: print(f"Analysis completed. Total code smells found: {total_smells}")
+activate TextBoxRedirect
+TextBoxRedirect -> CodeSmellDetectorGUI: Write to output textbox
+deactivate TextBoxRedirect
+
+== Error Handling ==
+note over ProjectAnalyzer
+    If SyntaxError or FileNotFoundError in any file:
+    - Write error to output/error.txt
+    - Continue with next file
+    - Do not stop analysis
+end note
+
+== Analysis Complete ==
+note over CodeSmellDetectorGUI
+    Analysis thread completes
+    GUI remains responsive
+    User can see all output in textbox
+end note
+
+deactivate CodeSmellDetectorGUI
+
+== User Exit ==
+User -> CodeSmellDetectorGUI: click "Exit"
+CodeSmellDetectorGUI -> GUI_Runner: self.master.quit()
+GUI_Runner --> User: Application closes
+deactivate GUI_Runner
+
+@enduml
