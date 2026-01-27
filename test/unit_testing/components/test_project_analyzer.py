@@ -3,6 +3,7 @@ import shutil
 import pytest
 import pandas as pd
 from unittest.mock import ANY, MagicMock, patch
+import components.project_analyzer as pa
 from components.project_analyzer import ProjectAnalyzer
 
 
@@ -455,14 +456,11 @@ def test_analyze_project_empty_directory(
     )
 
     # Mock get_python_files to return an empty list
-    monkeypatch.setattr(
-        "utils.file_utils.FileUtils.get_python_files", lambda _: []
-    )
+    # Patch where the symbol is used (components.project_analyzer), not where it's defined
+    monkeypatch.setattr(pa.FileUtils, "get_python_files", lambda _: [])
 
-    # Run the method
-    total_smells = project_analyzer.analyze_project(
-        "test/unit_testing/components/mock_project_path"
-    )
-
-    # Assert that no smells are found
-    assert total_smells == 0
+    # Run the method and verify it raises ValueError for empty directory
+    with pytest.raises(ValueError, match="contains no Python files"):
+        project_analyzer.analyze_project(
+            "test/unit_testing/components/mock_project_path"
+        )
