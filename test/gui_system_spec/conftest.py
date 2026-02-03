@@ -80,6 +80,30 @@ def gui_app(repo_root: Path, tk_root, monkeypatch):
         sys.path.remove(str(repo_root))
 
 
+def _wait_for_daemon_threads(timeout: int = 60) -> None:
+    """
+    Aspetta che tutti i thread daemon completino.
+    Utile per test async/parallel che usano thread daemon.
+    """
+    import threading
+    import time
+    
+    start = time.time()
+    main_thread = threading.current_thread()
+    
+    while time.time() - start < timeout:
+        daemon_threads = [
+            t for t in threading.enumerate()
+            if t != main_thread and t.daemon
+        ]
+        if not daemon_threads:
+            return  # Tutti i daemon thread hanno terminato
+        time.sleep(0.01)  # Aspetta 10ms prima di controllare di nuovo
+    
+    # Se arriviamo qui, è timeout
+    raise TimeoutError(f"Daemon threads didn't complete within {timeout}s")
+
+
 def copy_project(src: Path, dst: Path) -> None:
     if dst.exists():
         shutil.rmtree(dst)

@@ -33,7 +33,13 @@ def _set_spinbox(spinbox, value: str) -> None:
 
 
 def _run(gui_app, capsys) -> str:
+    from test.gui_system_spec.conftest import _wait_for_daemon_threads
+    
     gui_app.run_program()
+    
+    # Aspetta che TUTTI i thread daemon completino (per test paralleli/async)
+    _wait_for_daemon_threads(timeout=60)
+    
     return capsys.readouterr().out
 
 
@@ -141,7 +147,6 @@ def test_TC_1_5(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys)
     assert "max_workers must be greater than 0" in out
 
 
-@pytest.mark.usefixtures("force_sync_threads")
 def test_TC_1_6(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Multi-project + Parallel, NP2, smells misti
     p1 = project_factory["single_custom"](
@@ -313,7 +318,6 @@ def test_TC_1_15(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
     _assert_smells_mixed(tmp_output_dir)
 
 
-@pytest.mark.usefixtures("force_sync_threads")
 def test_TC_1_16(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Multi-project parallel (P1)
     p1 = project_factory["single_custom"]([fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_16_p1")
@@ -330,7 +334,6 @@ def test_TC_1_16(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
     _assert_smells_mixed(tmp_output_dir)
 
 
-@pytest.mark.usefixtures("force_sync_threads")
 def test_TC_1_17(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Multi-project parallel con >1 walker (NW3)
     p1 = project_factory["single_custom"]([fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_17_p1")
