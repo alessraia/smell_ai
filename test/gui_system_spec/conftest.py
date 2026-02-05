@@ -45,7 +45,7 @@ def force_sync_threads(monkeypatch):
     return ImmediateThread
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def tk_root():
     """Crea Tk root; se non disponibile (headless senza Xvfb), skip."""
     try:
@@ -87,10 +87,10 @@ def _wait_for_daemon_threads(timeout: int = 60) -> None:
     """
     import threading
     import time
-    
+
     start = time.time()
     main_thread = threading.current_thread()
-    
+
     while time.time() - start < timeout:
         daemon_threads = [
             t for t in threading.enumerate()
@@ -99,7 +99,7 @@ def _wait_for_daemon_threads(timeout: int = 60) -> None:
         if not daemon_threads:
             return  # Tutti i daemon thread hanno terminato
         time.sleep(0.01)  # Aspetta 10ms prima di controllare di nuovo
-    
+
     # Se arriviamo qui, è timeout
     raise TimeoutError(f"Daemon threads didn't complete within {timeout}s")
 
