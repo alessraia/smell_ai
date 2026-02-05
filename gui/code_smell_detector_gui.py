@@ -1,3 +1,4 @@
+import os
 import sys
 import threading
 import tkinter as tk
@@ -158,7 +159,16 @@ class CodeSmellDetectorGUI:
             return
 
         # Gather parameters
-        num_walkers = int(self.walker_picker.get())
+        try:
+            num_walkers = int(self.walker_picker.get())
+        except ValueError:
+            print("Error: max_workers must be a number.")
+            return
+        
+        if num_walkers <= 0:
+            print("Error: max_workers must be greater than 0.")
+            return
+        
         is_parallel = self.parallel_var.get()
         is_resume = self.resume_var.get()
         is_multiple = self.multiple_var.get()
@@ -204,9 +214,24 @@ class CodeSmellDetectorGUI:
                 self.project_analyzer.clean_output_directory()
 
             if is_multiple:
+                # Validate that there are at least 2 projects
+                project_count = sum(
+                    1 for item in os.listdir(input_path)
+                    if os.path.isdir(os.path.join(input_path, item))
+                    and item not in {"output", "execution_log.txt"}
+                )
+                
+                if project_count < 2:
+                    print("Multiple mode isn’t available with only one project.")
+                    return
+                
                 print("Analyzing project(s)...")
 
                 if is_parallel:
+                    # In parallel mode, resume is not supported
+                    if is_resume:
+                        print("Warning: In parallel mode, resume mode is ignored.")
+                    
                     self.project_analyzer.analyze_projects_parallel(
                         base_path=input_path,
                         max_workers=num_walkers,
@@ -218,6 +243,14 @@ class CodeSmellDetectorGUI:
 
                 self.project_analyzer.merge_all_results()
             else:
+                # Warn if Parallel or Resume are set without Multiple mode
+                if is_parallel and is_resume:
+                    print("Warning: Parallel mode and Resume mode are ignored without Multiple mode.")
+                elif is_parallel:
+                    print("Warning: Parallel mode is ignored without Multiple mode.")
+                elif is_resume:
+                    print("Warning: Resume mode is ignored without Multiple mode.")
+                
                 total_smells = self.project_analyzer.analyze_project(
                     input_path
                 )

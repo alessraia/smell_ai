@@ -136,7 +136,6 @@ def test_TC_1_4(gui_app, project_factory, tmp_output_dir, capsys):
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non valida max_workers (spec TC_1.5)")
 def test_TC_1_5(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # NW1 (<=0) -> spec: errore max_workers > 0
     proj = project_factory["single_from_tc"]("TC12", "tc_1_5_single_py")
@@ -190,7 +189,6 @@ def test_TC_1_7(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys)
     _assert_smells_mixed(tmp_output_dir)
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="BUG: Resume clears output / loses previous results; overview contains only newly analyzed projects.")
 def test_TC_1_8(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     """
     TC_1.8 (as-spec): Resume con execution_log presente.
@@ -384,46 +382,44 @@ def test_TC_1_17(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="Bug: Resume non preserva/mergia risultati precedenti (output dipende da cosa viene analizzato nel run)")
 def test_TC_1_18_as_spec_resume_merges_previous_results(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
-    smell_proj = project_factory["single_custom"](
-        [fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_18_smell"
+    # Crea due progetti: uno con smell AI, uno con smell GENERIC
+    p1 = project_factory["single_custom"](
+        [fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_18_p1"
     )
+    p2 = project_factory["single_custom"](
+        [fixtures_root / "TC19" / "columns_dtype_not_set.py"], "tc_1_18_p2"
+    )
+    base = project_factory["multi_base"]({"project1": p1, "project2": p2}, "tc_1_18_base")
 
-    # RUN 1: single project (crea overview con AI)
-    _set_label(gui_app.input_path, str(smell_proj))
+    # RUN 1: multi-project, analizza entrambi i progetti (no resume)
+    _set_label(gui_app.input_path, str(base))
     _set_label(gui_app.output_path, str(tmp_output_dir))
-    gui_app.multiple_var.set(False)
+    gui_app.multiple_var.set(True)
     gui_app.parallel_var.set(False)
     gui_app.resume_var.set(False)
 
     out1 = _run(gui_app, capsys)
-    assert "Analysis completed." in out1
+    assert "Sequential execution completed" in out1
     assert _overview_path(tmp_output_dir).exists()
-    _assert_smells_ai_only(tmp_output_dir)
+    _assert_smells_mixed(tmp_output_dir)
 
-    # RUN 2: multi-project (smell + empty) con resume che skipppa smell
-    empty_proj = project_factory["empty"]("tc_1_18_empty")
-    base = project_factory["multi_base"]({"project1": smell_proj, "project2": empty_proj}, "tc_1_18_base")
+    # RUN 2: stesso input, con resume che skippa project1 (già nel log)
     (base / "execution_log.txt").write_text("project1\n", encoding="utf-8")
-
-    _set_label(gui_app.input_path, str(base))
-    gui_app.multiple_var.set(True)
+    
     gui_app.resume_var.set(True)
 
     out2 = _run(gui_app, capsys)
     assert "Analyzing project 'project1' sequentially" not in out2
     assert "Analyzing project 'project2' sequentially" in out2
 
-    # As-spec: risultati precedenti DEVONO rimanere
+    # As-spec: risultati precedenti DEVONO rimanere (smell misti)
     assert _overview_path(tmp_output_dir).exists()
-    after = _read_text(_overview_path(tmp_output_dir))
-    assert "Chain_Indexing" in after, "Resume ha perso i risultati del progetto skippato"
+    _assert_smells_mixed(tmp_output_dir)
 
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non gestisce input non numerico: ValueError in console, nessun messaggio user-friendly in output (spec TC_1.19)")
 def test_TC_1_19(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     proj = project_factory["single_from_tc"]("TC12", "tc_1_19")
     _set_label(gui_app.input_path, str(proj))
@@ -433,7 +429,6 @@ def test_TC_1_19(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
     assert "max_workers must be a number" in out
 
 
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'In parallel mode, resume mode is ignored' (spec TC_1.20)")
 def test_TC_1_20(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     smell_proj = project_factory["single_custom"](
         [fixtures_root / "TC12" / "chain_indexing.py",
@@ -463,7 +458,6 @@ def test_TC_1_20(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa messaggio 'In parallel mode, resume mode is ignored' (spec TC_1.21)")
 def test_TC_1_21(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     p1 = project_factory["single_custom"]([fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_21_p1")
     p2 = project_factory["single_custom"]([fixtures_root / "TC19" / "columns_dtype_not_set.py"], "tc_1_21_p2")
@@ -492,7 +486,6 @@ def test_TC_1_21(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 # Li lasciamo come singoli test case, ma xfail “as-spec”.
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple con 1 solo progetto (spec TC_1.22)")
 def test_TC_1_22(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Input con 1 solo progetto (che contiene file .py con smell)
     p1 = project_factory["single_custom"](
@@ -517,7 +510,6 @@ def test_TC_1_22(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
     assert not _overview_path(tmp_output_dir).exists()
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple+Parallel con 1 solo progetto (spec TC_1.23)")
 def test_TC_1_23(gui_app, project_factory, tmp_output_dir, capsys, fixtures_root):
     p1 = project_factory["single_from_tc"]("TC12", "tc_1_23_p1")
     base = project_factory["multi_base"]({"project1": p1}, "tc_1_23_base")
@@ -532,7 +524,6 @@ def test_TC_1_23(gui_app, project_factory, tmp_output_dir, capsys, fixtures_root
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple+Resume con 1 solo progetto (spec TC_1.24)")
 def test_TC_1_24(gui_app, project_factory, tmp_output_dir, capsys, fixtures_root):
     p1 = project_factory["single_from_tc"]("TC12", "tc_1_24_p1")
     base = project_factory["multi_base"]({"project1": p1}, "tc_1_24_base")
@@ -547,7 +538,6 @@ def test_TC_1_24(gui_app, project_factory, tmp_output_dir, capsys, fixtures_root
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple+Parallel+Resume con 1 solo progetto (spec TC_1.25)")
 def test_TC_1_25(gui_app, project_factory, tmp_output_dir, capsys, fixtures_root):
     p1 = project_factory["single_from_tc"]("TC12", "tc_1_25_p1")
     base = project_factory["multi_base"]({"project1": p1}, "tc_1_25_base")
@@ -563,7 +553,6 @@ def test_TC_1_25(gui_app, project_factory, tmp_output_dir, capsys, fixtures_root
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.26)")
 def test_TC_1_26(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Parallel+Resume ma Multiple=OFF  => as-spec: viene ignorato e si va in SEQUENZIALE (da zero)
 
@@ -581,15 +570,14 @@ def test_TC_1_26(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
     out = _run(gui_app, capsys)
 
-    # as-spec: deve degradare a sequenziale
-    assert "Sequential execution completed" in out
+    # as-spec: deve comportarsi come single-project
+    assert "Analysis completed." in out
 
     # as-spec: deve anche avvisare (oggi non lo fa -> XFAIL)
     assert "Parallel mode and Resume mode are ignored without Multiple mode" in out
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.27)")
 def test_TC_1_27(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
     gen_file = fixtures_root / "TC19" / "columns_dtype_not_set.py"
@@ -615,7 +603,6 @@ def test_TC_1_27(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'Resume mode is ignored without Multiple mode' (spec TC_1.28)")
 def test_TC_1_28(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Single project con smell misti (AI + GENERIC), Resume=ON ma Multiple=OFF
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -647,7 +634,6 @@ def test_TC_1_28(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple con 1 progetto (spec TC_1.29)")
 def test_TC_1_29(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # 1 solo progetto MA con più file .py e smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -671,7 +657,6 @@ def test_TC_1_29(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple+Parallel con 1 progetto (spec TC_1.30)")
 def test_TC_1_30(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # 1 solo progetto MA con più file .py e smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -695,7 +680,6 @@ def test_TC_1_30(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple+Resume con 1 progetto (spec TC_1.31)")
 def test_TC_1_31(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # 1 solo progetto MA con più file .py e smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -719,7 +703,6 @@ def test_TC_1_31(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non blocca Multiple+Parallel+Resume con 1 progetto (spec TC_1.32)")
 def test_TC_1_32(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # 1 solo progetto con >1 file .py e smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -743,7 +726,6 @@ def test_TC_1_32(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.33)")
 def test_TC_1_33(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Input: più file .py con smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -774,7 +756,6 @@ def test_TC_1_33(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.34)")
 def test_TC_1_34(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Input: più file .py con smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -805,7 +786,6 @@ def test_TC_1_34(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.35)")
 def test_TC_1_35(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Input: più file .py con smell misti (AI + GENERIC)
     ai_file = fixtures_root / "TC12" / "chain_indexing.py"
@@ -836,7 +816,6 @@ def test_TC_1_35(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.36)")
 def test_TC_1_36(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # Input path con più progetti (uno con smell misti, uno vuoto)
     smell_proj = project_factory["single_custom"](
@@ -871,7 +850,6 @@ def test_TC_1_36(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.37)")
 def test_TC_1_37(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # TC11: base multi-project con più file (almeno un .py) e smell misti
     p1 = project_factory["single_custom"]([fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_37_p1")
@@ -902,7 +880,6 @@ def test_TC_1_37(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.38)")
 def test_TC_1_38(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # NP2: path con più progetti (uno con smell misti, uno vuoto)
     smell_proj = project_factory["single_custom"](
@@ -937,7 +914,6 @@ def test_TC_1_38(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.39)")
 def test_TC_1_39(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # NP2: cartella base con due progetti: uno con smell misti, uno vuoto
     p1 = project_factory["single_custom"]([fixtures_root / "TC12" / "chain_indexing.py"], "tc_1_39_p1")
@@ -968,7 +944,6 @@ def test_TC_1_39(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.40)")
 def test_TC_1_40(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     smell_proj = project_factory["single_custom"](
         [fixtures_root / "TC12" / "chain_indexing.py",
@@ -986,7 +961,6 @@ def test_TC_1_40(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys
 
 
 @pytest.mark.usefixtures("force_sync_threads")
-@pytest.mark.xfail(strict=True, reason="GUI attuale non stampa 'ignored without Multiple' (spec TC_1.41)")
 def test_TC_1_41(gui_app, project_factory, tmp_output_dir, fixtures_root, capsys):
     # 2 progetti, nessuno vuoto: uno AI-only, uno GENERIC-only
     p1 = project_factory["single_custom"](

@@ -75,6 +75,17 @@ class FileUtils:
         dataframes = []
         print(f"Looking for CSV files in directory: {input_dir}")
 
+        # Check if overview.csv already exists (for resume mode)
+        overview_path = os.path.join(output_dir, "overview.csv")
+        if os.path.exists(overview_path):
+            try:
+                existing_df = pd.read_csv(overview_path)
+                if not existing_df.empty:
+                    dataframes.append(existing_df)
+                    print(f"Loaded existing overview.csv with {len(existing_df)} rows")
+            except Exception as e:
+                print(f"Failed to read existing overview.csv: {e}")
+
         for subdir, _, files in os.walk(input_dir):
             for file in files:
                 if file.endswith(".csv"):
@@ -91,9 +102,7 @@ class FileUtils:
         if dataframes:
             combined_df = pd.concat(dataframes, ignore_index=True)
             os.makedirs(output_dir, exist_ok=True)
-            combined_df.to_csv(
-                os.path.join(output_dir, "overview.csv"), index=False
-            )
+            combined_df.to_csv(overview_path, index=False)
             print(f"Merged results saved to {output_dir}/overview.csv")
         else:
             print("No valid CSV files found to merge.")

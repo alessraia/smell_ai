@@ -23,7 +23,8 @@ class ProjectAnalyzer:
         self.base_output_path = output_path
         self.output_path = os.path.join(output_path, "output")
 
-        FileUtils.clean_directory(self.base_output_path, "output")
+        # Create output directory if it doesn't exist, but don't clean it
+        os.makedirs(self.output_path, exist_ok=True)
 
         self.inspector = Inspector(self.output_path)
 
