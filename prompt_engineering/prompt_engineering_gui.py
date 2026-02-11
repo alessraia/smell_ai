@@ -17,7 +17,7 @@ from llm_detection.orchestrator import LLMOrchestrator
 from llm_detection.providers import LocalLLMProvider
 from llm_detection.types import DetectionTarget, PromptMode, ProviderKind
 from utils.file_utils import FileUtils
-from gui.manage_code_smells_gui import ManageCodeSmellsGUI
+from gui.manage_code_smells_gui import AddSmellDialog
 
 
 class PromptEngineeringGUI:
@@ -281,24 +281,16 @@ class PromptEngineeringGUI:
     # ---------------- UI events ----------------
 
     def _on_add_smell(self) -> None:
-        # Open the management GUI
-        top = tk.Toplevel(self.master)
-        
-        # Ensure top is strictly modal
-        top.transient(self.master) 
-        try:
-            top.grab_set() 
-        except tk.TclError:
-            # occasionally fails if window not fully visible yet
-            pass
+        def on_success(new_smell_id: str) -> None:
+            self._load_smells_into_dropdown()
+            # Select the new smell automatically
+            for display, sid in self._smell_display_to_id.items():
+                if sid == new_smell_id:
+                    self._smell_combo.set(display)
+                    self._on_smell_selected()
+                    break
 
-        ManageCodeSmellsGUI(top, self.catalog_service)
-        
-        top.focus_set()
-
-        # Wait for close
-        self.master.wait_window(top)
-        self._load_smells_into_dropdown()
+        AddSmellDialog(self.master, self.catalog_service, on_success)
 
     def _on_smell_selected(self) -> None:
         if not self._confirm_discard_unsaved_draft_if_needed(context="cambiare smell"):
