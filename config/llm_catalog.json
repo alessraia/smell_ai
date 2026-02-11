@@ -5,21 +5,36 @@
       "smell_id": "chain_index",
       "display_name": "chain index",
       "description": "Smell fittizio inserito per provare l'interfaccia di Prompt Engineering (UC02).",
-      "default_prompt": "",
+      "default_prompt": "Detect the code smell called \"Pandas Chained Indexing\" (often called \"Chain Indexing\").\n\nDEFINITION:\nA Pandas Chained Indexing smell occurs when a pandas DataFrame is accessed with two consecutive bracket indexers, typically like df[col][row] or df[mask][col].\nThis is problematic because it can return a view vs copy unpredictably and can cause SettingWithCopy issues.\nPreferred alternatives are explicit indexers, e.g. df.loc[row, col] or df.iloc[row, col].\n\nDETECTION RULES:\n- Flag any expression of the form: <df_expr>[...][...] (two consecutive bracket indexers).\n- Treat BOTH reads and writes as findings.\n- Scan the ENTIRE file and return ALL occurrences as separate findings (do not group).\n- Be conservative to avoid false positives.",
       "draft_prompt": "Detect the code smell called \"Pandas Chained Indexing\" (often called \"Chain Indexing\").\n\nDEFINITION:\nA Pandas Chained Indexing smell occurs when a pandas DataFrame is accessed with two consecutive bracket indexers, typically like df[col][row] or df[mask][col].\nThis is problematic because it can return a view vs copy unpredictably and can cause SettingWithCopy issues.\nPreferred alternatives are explicit indexers, e.g. df.loc[row, col] or df.iloc[row, col].\n\nDETECTION RULES:\n- Flag any expression of the form: <df_expr>[...][...] (two consecutive bracket indexers).\n- Treat BOTH reads and writes as findings.\n- Scan the ENTIRE file and return ALL occurrences as separate findings (do not group).\n- Be conservative to avoid false positives.",
       "created_by_user": true,
-      "enabled": false
+      "enabled": true
     }
   ],
   "providers": [
     {
-      "provider_id": "local-ollama",
+      "provider_id": "local-ollama-qwen",
       "kind": "local",
-      "display_name": "Ollama (local)",
+      "display_name": "Ollama - Qwen 2.5 Coder 7B",
       "config": {
         "host": "http://localhost:11434",
         "format": "json",
         "model_name": "qwen2.5-coder:7b",
+        "options": {
+          "num_predict": 256,
+          "num_ctx": 2048,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "provider_id": "local-ollama-gemma",
+      "kind": "local",
+      "display_name": "Ollama - Gemma3 4B",
+      "config": {
+        "host": "http://localhost:11434",
+        "format": "json",
+        "model_name": "gemma3:4b",
         "options": {
           "num_predict": 256,
           "num_ctx": 2048,
