@@ -58,11 +58,25 @@ class PromptEngineeringGUI:
 
     def _build_ui(self) -> None:
         self.master.title("Prompt Engineering")
-        self.master.geometry("900x650")
+        # Slightly taller default to keep log fully visible without manual resize.
+        self.master.geometry("900x700")
+
+        style = ttk.Style(self.master)
+        # Keep default theme/colors; only reduce visual "heaviness".
+        try:
+            style.configure("Calm.Horizontal.TProgressbar", thickness=8)
+        except Exception:
+            pass
 
         top = ttk.Frame(self.master)
         top.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         self.master.grid_columnconfigure(0, weight=1)
+        # Make rows responsive: prompt + log should share vertical space.
+        self.master.grid_rowconfigure(0, weight=0)
+        self.master.grid_rowconfigure(1, weight=1)
+        self.master.grid_rowconfigure(2, weight=0)
+        self.master.grid_rowconfigure(3, weight=0)
+        self.master.grid_rowconfigure(4, weight=3)
 
         top.grid_columnconfigure(0, weight=1)
         top.grid_columnconfigure(1, weight=0)
@@ -79,8 +93,9 @@ class PromptEngineeringGUI:
 
         # Prompt box + mode
         mode_frame = ttk.LabelFrame(self.master, text="Prompt")
-        mode_frame.grid(row=1, column=0, sticky="ew", padx=10)
+        mode_frame.grid(row=1, column=0, sticky="nsew", padx=10)
         mode_frame.grid_columnconfigure(0, weight=1)
+        mode_frame.grid_rowconfigure(2, weight=1)
 
         best = ttk.Label(
             mode_frame,
@@ -114,7 +129,7 @@ class PromptEngineeringGUI:
         )
         self._default_radio.grid(row=0, column=1, sticky="w")
 
-        self._prompt_text = ScrolledText(mode_frame, height=12, wrap="word")
+        self._prompt_text = ScrolledText(mode_frame, height=8, wrap="word")
         self._prompt_text.grid(row=2, column=0, sticky="nsew", padx=10, pady=(4, 10))
         self._prompt_text.bind("<KeyRelease>", self._on_prompt_edited)
 
@@ -169,13 +184,12 @@ class PromptEngineeringGUI:
         self._status_label = ttk.Label(actions, textvariable=self._status_var)
         self._status_label.grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
 
-        self._progress = ttk.Progressbar(actions, mode="determinate")
+        self._progress = ttk.Progressbar(actions, mode="determinate", style="Calm.Horizontal.TProgressbar")
         self._progress.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(4, 0))
 
         # Output
         out = ttk.LabelFrame(self.master, text="Risultati / Log")
         out.grid(row=4, column=0, sticky="nsew", padx=10, pady=10)
-        self.master.grid_rowconfigure(4, weight=1)
         out.grid_columnconfigure(0, weight=1)
         out.grid_rowconfigure(0, weight=1)
 
@@ -421,8 +435,9 @@ class PromptEngineeringGUI:
         self._running_filename = ""
 
         self._set_running_state(True)
+        # Indeterminate is best for long single-file LLM calls; make it calmer by slowing it down.
         self._progress.configure(mode="indeterminate")
-        self._progress.start(10)
+        self._progress.start(120)
         self._run_started_at = monotonic()
         self._status_var.set(f"Running: 0/{len(python_files)}  (starting...)")
         self._schedule_heartbeat()
@@ -734,6 +749,8 @@ class PromptEngineeringGUI:
     def _append_output(self, text: str) -> None:
         self._output_text.configure(state="normal")
         self._output_text.insert("end", text)
+        # Ensure geometry/layout is up-to-date before scrolling.
+        self._output_text.update_idletasks()
         self._output_text.see("end")
         self._output_text.configure(state="disabled")
 
