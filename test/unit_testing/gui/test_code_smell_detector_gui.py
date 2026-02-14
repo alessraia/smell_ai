@@ -75,6 +75,35 @@ def test_disable_key_press(mocker, gui):
     assert result == "break"
 
 
+def test_run_analysis_with_resume(gui, mocker):
+    """
+    Test run_analysis with resume mode enabled.
+    Branch: if not is_resume (line 402) -> False path
+    """
+    # Arrange
+    mock_project_analyzer = mocker.MagicMock()
+    mocker.patch(
+        'gui.code_smell_detector_gui.ProjectAnalyzer',
+        return_value=mock_project_analyzer
+    )
+    
+    # Act
+    gui.run_analysis(
+        input_path="/test/input",
+        output_path="/test/output",
+        num_walkers=1,
+        is_parallel=False,
+        is_resume=True,  # Resume mode enabled
+        is_multiple=False,
+        use_llm=False
+    )
+    
+    # Assert
+    # clean_output_directory should NOT be called when resume is True
+    mock_project_analyzer.clean_output_directory.assert_not_called()
+    mock_project_analyzer.analyze_project.assert_called_once_with("/test/input")
+
+
 def test_gui_layout(gui):
     """
     Test that the GUI layout contains the expected widgets.
