@@ -215,11 +215,17 @@ class PromptEngineeringGUI:
             self._ui_disabled_no_smells = True
             self._disable_all_controls_no_smells()
             self._append_output(
-                "Catalogo smell vuoto: impossibile procedere con il prompt engineering (UC02 - 2.a).\n"
+                "Catalogo smell vuoto: aggiungi almeno uno smell con '+' per procedere.\n"
             )
             return
 
         self._ui_disabled_no_smells = False
+        # If the catalog was empty at startup, controls may still be disabled.
+        # Re-enable the minimal set now that we have at least one smell.
+        self._smell_combo.configure(state="readonly")
+        self._draft_radio.configure(state="normal")
+        self._default_radio.configure(state="normal")
+        self._add_smell_btn.configure(state="normal")
         self._smell_combo.current(0)
         self._on_smell_selected()
 
@@ -284,7 +290,8 @@ class PromptEngineeringGUI:
     def _disable_all_controls_no_smells(self) -> None:
         self._smell_combo.set("")
         self._smell_combo.configure(state="disabled")
-        self._add_smell_btn.configure(state="disabled")
+        # Allow bootstrap: user can add the first smell directly from Prompt Engineering.
+        self._add_smell_btn.configure(state="normal")
         self._draft_radio.configure(state="disabled")
         self._default_radio.configure(state="disabled")
         self._prompt_text.configure(state="disabled")
@@ -297,6 +304,8 @@ class PromptEngineeringGUI:
     def _on_add_smell(self) -> None:
         def on_success(new_smell_id: str) -> None:
             self._load_smells_into_dropdown()
+            # If we started with an empty catalog, providers combo may have been disabled.
+            self._load_local_providers_into_dropdown()
             # Select the new smell automatically
             for display, sid in self._smell_display_to_id.items():
                 if sid == new_smell_id:
@@ -703,12 +712,14 @@ class PromptEngineeringGUI:
         state = "disabled" if running else "normal"
 
         # Keep things consistent even if UI is disabled due to empty smell catalog.
+        # NOTE: the add-smell (+) button stays enabled when not running.
         action_state = "disabled" if (running or self._ui_disabled_no_smells) else "normal"
+        add_smell_state = "disabled" if running else "normal"
 
         self._test_btn.configure(state=action_state)
         self._save_default_btn.configure(state=action_state)
         self._smell_combo.configure(state="disabled" if running else ("disabled" if self._ui_disabled_no_smells else "readonly"))
-        self._add_smell_btn.configure(state=action_state)
+        self._add_smell_btn.configure(state=add_smell_state)
         self._cancel_btn.configure(state="normal" if running else "disabled")
         self._local_provider_combo.configure(state="disabled" if running else ("disabled" if self._ui_disabled_no_smells else "readonly"))
 

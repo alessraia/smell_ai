@@ -111,6 +111,8 @@ def test_empty_smell_catalog_disables_ui_and_logs_message(tk_root):
 
     assert gui._ui_disabled_no_smells is True
     assert str(gui._smell_combo.cget("state")) == "disabled"
+    # The + button stays enabled to allow adding the first smell from this UI.
+    assert str(gui._add_smell_btn.cget("state")) == "normal"
     assert str(gui._test_btn.cget("state")) == "disabled"
     assert str(gui._local_provider_combo.cget("state")) == "disabled"
 
