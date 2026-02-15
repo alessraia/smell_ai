@@ -197,17 +197,20 @@ class ManageCodeSmellsGUI:
             return
 
         new_desc = self._desc_text.get("1.0", "end-1c") # Remove trailing newline
-        if not new_desc.strip():
-            messagebox.showwarning("Attenzione", "La descrizione non può essere vuota.")
-            return
-
-        # Check if description actually changed to avoid unnecessary prompts
+        
         try:
             catalog = self.catalog_service.load()
             current_smell = catalog.get_smell(self._current_smell_id)
             old_desc = current_smell.description
         except Exception as e:
             messagebox.showerror("Errore", f"Errore nel recupero dati originali: {e}")
+            return
+
+        if not new_desc.strip():
+            messagebox.showwarning("Attenzione", "La descrizione non può essere vuota.")
+            # Revert to old description
+            self._desc_text.delete("1.0", "end")
+            self._desc_text.insert("1.0", old_desc)
             return
         
         if new_desc == old_desc:
