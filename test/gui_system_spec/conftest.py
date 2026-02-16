@@ -157,3 +157,154 @@ def project_factory(tmp_path: Path, fixtures_root: Path):
         "single_custom": _mk_single_project_custom,
         "multi_base": _mk_multi_base,
     }
+
+
+# ==================== LLM Testing Fixtures ====================
+
+@pytest.fixture()
+def mock_llm_catalog():
+    """
+    Crea un catalog LLM standard per i test con provider e smell di default.
+    """
+    from llm_detection.types import (
+        LLMCatalog,
+        LLMSmellDefinition,
+        LLMProviderDefinition,
+        ProviderKind,
+    )
+
+    return LLMCatalog(
+        schema_version=1,
+        smells=[
+            LLMSmellDefinition(
+                smell_id="test_smell_1",
+                display_name="Test Smell 1",
+                description="Test description",
+                default_prompt="Test prompt",
+                enabled=True,
+            ),
+            LLMSmellDefinition(
+                smell_id="test_smell_2",
+                display_name="Test Smell 2",
+                description="Test description 2",
+                default_prompt="Test prompt 2",
+                enabled=True,
+            ),
+        ],
+        providers=[
+            LLMProviderDefinition(
+                provider_id="local-ollama",
+                kind=ProviderKind.LOCAL,
+                display_name="Ollama Local",
+                config={"host": "http://localhost:11434", "model_name": "qwen2.5-coder:7b"},
+            ),
+            LLMProviderDefinition(
+                provider_id="api-openai",
+                kind=ProviderKind.API,
+                display_name="OpenAI API",
+                config={"base_url": "https://api.openai.com"},
+            ),
+        ],
+    )
+
+
+@pytest.fixture()
+def mock_llm_catalog_no_smells():
+    """
+    Catalog con provider ma senza smell detectabili (per TC_4.44).
+    """
+    from llm_detection.types import (
+        LLMCatalog,
+        LLMProviderDefinition,
+        ProviderKind,
+    )
+
+    return LLMCatalog(
+        schema_version=1,
+        smells=[],  # Nessuno smell
+        providers=[
+            LLMProviderDefinition(
+                provider_id="local-ollama",
+                kind=ProviderKind.LOCAL,
+                display_name="Ollama Local",
+                config={"host": "http://localhost:11434", "model_name": "qwen2.5-coder:7b"},
+            ),
+        ],
+    )
+
+
+@pytest.fixture()
+def mock_llm_catalog_no_providers():
+    """
+    Catalog con smell ma senza provider locali (per TC_4.49).
+    """
+    from llm_detection.types import (
+        LLMCatalog,
+        LLMSmellDefinition,
+        ProviderKind,
+    )
+
+    return LLMCatalog(
+        schema_version=1,
+        smells=[
+            LLMSmellDefinition(
+                smell_id="test_smell_1",
+                display_name="Test Smell 1",
+                description="Test description",
+                default_prompt="Test prompt",
+                enabled=True,
+            ),
+        ],
+        providers=[],  # Nessun provider
+    )
+
+
+@pytest.fixture()
+def mock_catalog_service(mock_llm_catalog):
+    """
+    Mock del LLMCatalogService che ritorna il catalog standard.
+    """
+    from unittest.mock import MagicMock
+
+    service = MagicMock()
+    service.load.return_value = mock_llm_catalog
+    service.list_detectable_smells.return_value = [
+        s for s in mock_llm_catalog.smells if s.is_ready_for_detection()
+    ]
+    service.get_provider.side_effect = lambda pid: next(
+        (p for p in mock_llm_catalog.providers if p.provider_id == pid), None
+    )
+    return service
+
+
+@pytest.fixture()
+def gui_app_with_llm_mock(repo_root: Path, tk_root, monkeypatch, mock_catalog_service):
+    """
+    GUI app con catalog service mockato per i test LLM.
+    """
+    sys.path.insert(0, str(repo_root))
+    from gui.code_smell_detector_gui import CodeSmellDetectorGUI
+    from unittest.mock import MagicMock
+
+    # Mock il catalog service
+    monkeypatch.setattr(
+        "gui.code_smell_detector_gui.LLMCatalogService",
+        lambda: mock_catalog_service
+    )
+
+    # Disabilita stdout redirect
+    monkeypatch.setattr(CodeSmellDetectorGUI, "configure_stdout", lambda self: None)
+
+    # Mock dell'orchestrator per evitare chiamate LLM reali
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.analyze_project.return_value = None  # Simuliamo successo
+    monkeypatch.setattr(
+        "gui.code_smell_detector_gui.LLMOrchestrator",
+        lambda *args, **kwargs: mock_orchestrator
+    )
+
+    app = CodeSmellDetectorGUI(tk_root)
+    yield app
+
+    if str(repo_root) in sys.path:
+        sys.path.remove(str(repo_root))
