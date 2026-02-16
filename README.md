@@ -90,6 +90,20 @@ python -m cli.cli_runner --input <input_directory> --output <output_directory> [
 python -m gui.gui_runner
 ```
 
+#### GUI Options:
+- input: Path to the input folder containing Python files. (Required)
+- output: Path to the output folder where the analysis results will be saved. (Required)
+- multiple: Analyze multiple projects within the input folder.
+- parallel: Enable parallel execution for faster analysis. Only applicable if Multiple is enabled.
+- max_walkers: Number of workers to use for parallel execution. Only applicable if Parallel is enabled.
+- resume: Resume a previous analysis from where it stopped. Only applicable if Multiple is enabled and Parallel in not enabled
+- **_LLM detection_**:
+  - provider type: API or Local (if available in the catalog `config/llm_catalog.json`).
+  - specific model (from the catalog `config/llm_catalog.json`).
+  - code smell (if available in the catalog `config/llm_catalog.json` with the `default prompt` field not empty)
+
+---
+
 ### Testing
 The project includes a comprehensive suite of tests to ensure code quality and reliability. Specifically, the following types of tests have been implemented:
 
@@ -101,7 +115,51 @@ All tests are located in the test directory.
 
 ---
 
-## 2. AI-Based Detection Tool
+## 2. Prompt Engineering 
+
+This repository includes an **additive**, optional GUI to perform **prompt engineering** for LLM-based smell detection.
+
+### Run
+```bash
+python -m prompt_engineering.prompt_engineering_gui
+```
+
+### Prerequisites (local LLM)
+- Python package `ollama` installed in your environment
+- Ollama server running (default: `http://localhost:11434`)
+- The configured model available locally (see `config/llm_catalog.json`)
+
+### Expected workflow
+- Select a smell from the LLM catalog (`config/llm_catalog.json`).
+- Select the prompt mode (**Temporaneo** / **Default**). If needed, edit the **draft** prompt (temporaneo), choose an input folder with one or more `.py` files, and choose an output folder.
+- Select which **local LLM provider** to use from the “LLM locale” dropdown (providers come from the catalog `config/llm_catalog.json`).
+- Click **Test con LLM locale**: runs the test using the currently selected prompt mode; if **Temporaneo**, the current text is saved as draft and used for the test.
+- If satisfied, click **Salva temporaneo come default** to promote draft → default (the smell becomes usable for LLM detection).
+
+Best practice: keep the smell prompt **smell-specific only** (definition + rules). The JSON output contract is enforced by the orchestrator, so do not duplicate it in the prompt.
+
+### Output
+The tool creates a subfolder `<output_path>/output/` with:
+- `prompt_engineering_<smell_id>_<timestamp>.csv` (normalized findings)
+- `prompt_engineering_<smell_id>_<timestamp>_raw.jsonl` (raw LLM responses for audit/debug)
+
+### 2.1 Manage Code Smell 
+
+This repository includes an **additive**, optional GUI to **manage code smells** for Prompt Engineering and LLM-Based Detection.
+
+#### Run 
+```bash
+python -m gui.manage_code_smells_gui
+```
+### Expected workflow
+- Select a smell from the LLM catalog (`config/llm_catalog.json`).
+- Edit the **description** (which must not be empty).
+- Add a new code smell (which must not already be present in the catalog `config/llm_catalog.json`).
+- Remove an existing code smell. 
+
+---
+
+## 3. AI-Based Detection Tool
 
 The AI-based tool is an experimental feasibility study that investigates the use of **LLMs** for generating synthetic datasets and detecting ML-specific code smells.
 
@@ -164,7 +222,7 @@ tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
 ---
 
-## 3. Web Application
+## 4. Web Application
 We have also developed a **web-based application** to provide an interface for executing both tools interactively.
 
 For detailed instructions and further information, visit: **[this link](https://github.com/xDaryamo/smell_ai/tree/main/webapp)**.

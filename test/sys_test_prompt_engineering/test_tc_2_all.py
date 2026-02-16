@@ -993,7 +993,7 @@ def test_tc_2_16(
 ):
     """
     TC_2.16
-    Test frame: PS2-P1-PT1-SP2-FI2-NF2-NP1-FO2-LLM2-SOM2-SD2
+    Test frame: PS2-P1-PT1-SP2-FI2-NF2-NP1-FO2-LLM2-SOM2-SD1
 
     ORACOLO:
     La message box mostra l’errore: "Il prompt temporaneo è vuoto."
